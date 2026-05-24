@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Adventurer's Dice Tower</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --gold:#e8c97a; --gold-dim:#9b8c6e; --dark:#0e0c09; --panel:rgba(255,255,255,0.04);
+}
+
+body {
+  min-height:100vh;
+  background:#0e0c09;
+  background-image:
+    radial-gradient(ellipse at 20% 20%,rgba(139,100,40,.09) 0%,transparent 60%),
+    radial-gradient(ellipse at 80% 80%,rgba(80,50,120,.09) 0%,transparent 60%);
+  font-family:system-ui,sans-serif;
+  color:#ccc;
+  overflow-x:hidden;
+}
+
+/* ── ROLLING DIE CANVAS ── */
+#roll-stage {
+  position:fixed;inset:0;pointer-events:none;z-index:100;
+  perspective:900px;
+}
+#rolling-die {
+  position:absolute;
+  width:90px;height:90px;
+  transform-style:preserve-3d;
+  display:none;
+  filter:drop-shadow(0 0 24px var(--die-glow,#e8c97a));
+}
+/* 6 faces */
+.face {
+  position:absolute;width:90px;height:90px;
+  border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cinzel',serif;font-size:22px;font-weight:900;
+  backface-visibility:hidden;
+  border:2px solid rgba(255,255,255,.18);
+  overflow:hidden;
+  background:rgba(20,16,10,.92);
+  color:#e8c97a;
+}
+.face img {
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;opacity:.55;border-radius:12px;
+}
+.face span{position:relative;z-index:1;text-shadow:0 2px 8px #000;}
+.face-front  {transform:translateZ(45px)}
+.face-back   {transform:rotateY(180deg) translateZ(45px)}
+.face-right  {transform:rotateY(90deg) translateZ(45px)}
+.face-left   {transform:rotateY(-90deg) translateZ(45px)}
+.face-top    {transform:rotateX(90deg) translateZ(45px)}
+.face-bottom {transform:rotateX(-90deg) translateZ(45px)}
+
+@keyframes tumble{
+  0%  {transform:rotateX(0)   rotateY(0)   rotateZ(0)}
+  25% {transform:rotateX(300deg) rotateY(120deg) rotateZ(90deg)}
+  50% {transform:rotateX(540deg) rotateY(60deg)  rotateZ(220deg)}
+  75% {transform:rotateX(700deg) rotateY(300deg) rotateZ(310deg)}
+  100%{transform:rotateX(900deg) rotateY(420deg) rotateZ(450deg)}
+}
+.tumbling{animation:tumble .55s linear infinite}
+
+/* ── LAYOUT ── */
+.page {max-width:520px;margin:0 auto;padding:24px 16px 48px;}
+
+.header{text-align:center;margin-bottom:32px}
+.header-sub{font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:6px;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px}
+.header-title{font-family:'Cinzel Decorative',serif;font-size:30px;font-weight:700;color:var(--gold);letter-spacing:2px;text-shadow:0 0 40px rgba(232,201,122,.4)}
+
+.panel{background:rgba(255,255,255,.032);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:24px;margin-bottom:16px;backdrop-filter:blur(16px)}
+
+.sec-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:var(--gold-dim);text-transform:uppercase;margin-bottom:12px}
+
+/* ── DICE SELECTOR ── */
+.dice-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:24px}
+.die-btn{
+  background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.08);
+  border-radius:11px;padding:9px 0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  transition:all .2s ease;
+}
+.die-btn:hover{transform:translateY(-3px) scale(1.06)}
+.die-btn:active{transform:scale(.96)}
+.die-sym{font-size:15px;line-height:1}
+.die-lbl{font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#555;letter-spacing:.4px}
+
+/* ── CONTROLS ── */
+.controls-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+.ctrl-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:var(--gold-dim);margin-bottom:8px;text-transform:uppercase}
+.stepper{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.35);border-radius:10px;padding:7px 10px;border:1px solid rgba(255,255,255,.07)}
+.step-btn{background:rgba(255,255,255,.07);border:none;color:#ccc;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1;transition:background .15s}
+.step-btn:hover{background:rgba(255,255,255,.15)}
+.step-val{flex:1;text-align:center;font-family:'Cinzel',serif;font-weight:700;font-size:17px;color:var(--gold)}
+
+/* ── IMAGE UPLOADER ── */
+.img-upload-area {
+  border:2px dashed rgba(255,255,255,.12);border-radius:14px;
+  padding:20px;text-align:center;cursor:pointer;
+  transition:all .2s;margin-bottom:0;
+  position:relative;overflow:hidden;
+}
+.img-upload-area:hover{border-color:rgba(232,201,122,.4);background:rgba(232,201,122,.03)}
+.img-upload-area.has-img{border-style:solid;border-color:rgba(232,201,122,.3)}
+#img-preview{
+  width:80px;height:80px;object-fit:cover;border-radius:10px;
+  margin:0 auto 10px;display:none;border:2px solid rgba(232,201,122,.3);
+}
+.upload-icon{font-size:28px;margin-bottom:8px;opacity:.5}
+.upload-text{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:var(--gold-dim);text-transform:uppercase}
+.upload-sub{font-size:11px;color:#555;margin-top:4px}
+#img-input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.clear-img-btn{
+  display:none;margin-top:10px;background:rgba(232,80,80,.15);
+  border:1px solid rgba(232,80,80,.3);color:#e87a7a;
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
+  padding:5px 12px;border-radius:6px;cursor:pointer;text-transform:uppercase;
+}
+.clear-img-btn:hover{background:rgba(232,80,80,.25)}
+
+/* ── ROLL BUTTON ── */
+#roll-btn {
+  width:100%;padding:15px 0;border-radius:14px;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:3px;
+  text-transform:uppercase;transition:all .2s ease;
+  color:#0e0c09;
+}
+#roll-btn:hover:not(:disabled){filter:brightness(1.15)}
+#roll-btn:active:not(:disabled){transform:scale(.97)}
+#roll-btn:disabled{cursor:not-allowed}
+
+/* ── RESULT ── */
+#result-box{
+  display:none;margin-top:20px;text-align:center;
+  padding:22px 16px;border-radius:14px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+}
+#result-badge{font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:4px;margin-bottom:8px;display:none}
+#result-breakdown{font-size:12px;color:var(--gold-dim);margin-bottom:6px;font-family:monospace;letter-spacing:1px}
+#result-number{font-family:'Cinzel',serif;font-size:72px;font-weight:900;line-height:1;transition:text-shadow .3s}
+#result-mod-line{color:#555;font-size:12px;margin-top:4px;font-family:monospace}
+
+/* ── HISTORY ── */
+#history-section{display:none;margin-top:24px;border-top:1px solid rgba(255,255,255,.07);padding-top:18px}
+.history-lbl{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:var(--gold-dim);margin-bottom:10px;text-transform:uppercase}
+#history-list{display:flex;flex-direction:column;gap:5px}
+.hist-row{display:flex;align-items:center;justify-content:space-between;padding:5px 11px;background:rgba(255,255,255,.03);border-radius:6px}
+.hist-die{font-family:'Cinzel',serif;font-size:12px;font-weight:700}
+.hist-val{color:#c8b99a;font-size:11px;font-family:monospace}
+
+.footer{text-align:center;margin-top:20px;font-family:'Cinzel',serif;font-size:9px;color:#2e2920;letter-spacing:2px}
+
+@keyframes float-in{from{opacity:0;transform:translateY(14px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes crit-flash{0%,100%{background:rgba(232,201,122,.05)}50%{background:rgba(232,201,122,.15)}}
+@keyframes fumble-flash{0%,100%{background:rgba(232,80,80,.05)}50%{background:rgba(232,80,80,.15)}}
+@keyframes spin-num{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+</style>
+</head>
+<body>
+
+<!-- ROLLING DIE (fixed overlay) -->
+<div id="roll-stage">
+  <div id="rolling-die">
+    <div class="face face-front"> <img id="fi1"/><span id="fn1"></span></div>
+    <div class="face face-back">  <img id="fi2"/><span id="fn2"></span></div>
+    <div class="face face-right"> <img id="fi3"/><span id="fn3"></span></div>
+    <div class="face face-left">  <img id="fi4"/><span id="fn4"></span></div>
+    <div class="face face-top">   <img id="fi5"/><span id="fn5"></span></div>
+    <div class="face face-bottom"><img id="fi6"/><span id="fn6"></span></div>
+  </div>
+</div>
+
+<div class="page">
+  <div class="header">
+    <div class="header-sub">⚔ Adventurer's ⚔</div>
+    <div class="header-title">Dice Tower</div>
+  </div>
+
+  <!-- DICE PICK -->
+  <div class="panel">
+    <div class="sec-label">Choose Die</div>
+    <div class="dice-grid" id="dice-grid"></div>
+
+    <div class="controls-row">
+      <div>
+        <div class="ctrl-label">Number of Dice</div>
+        <div class="stepper">
+          <button class="step-btn" id="count-down">−</button>
+          <span class="step-val" id="count-disp">1</span>
+          <button class="step-btn" id="count-up">+</button>
+        </div>
+      </div>
+      <div>
+        <div class="ctrl-label">Modifier</div>
+        <div class="stepper">
+          <button class="step-btn" id="mod-down">−</button>
+          <span class="step-val" id="mod-disp">0</span>
+          <button class="step-btn" id="mod-up">+</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="roll-btn">Roll D20</button>
+
+    <div id="result-box">
+      <div id="result-badge"></div>
+      <div id="result-breakdown"></div>
+      <div id="result-number">—</div>
+      <div id="result-mod-line"></div>
+    </div>
+
+    <div id="history-section">
+      <div class="history-lbl">Roll History</div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- IMAGE PANEL -->
+  <div class="panel">
+    <div class="sec-label">Die Skin — Upload an Image</div>
+    <div class="img-upload-area" id="upload-area">
+      <input type="file" id="img-input" accept="image/*"/>
+      <img id="img-preview" alt="preview"/>
+      <div class="upload-icon" id="upload-icon">🎨</div>
+      <div class="upload-text" id="upload-text">Drop or click to upload</div>
+      <div class="upload-sub" id="upload-sub">Image will appear on all faces of the die</div>
+      <button class="clear-img-btn" id="clear-img">✕ Remove Image</button>
+    </div>
+  </div>
+
+  <div class="footer">MAY YOUR ROLLS BE EVER IN YOUR FAVOR</div>
+</div>
+
+<script>
+const DICE=[
+  {sides:4,  label:"D4",  sym:"▲",color:"#e8c97a"},
+  {sides:6,  label:"D6",  sym:"⬡",color:"#7ac4e8"},
+  {sides:8,  label:"D8",  sym:"◆",color:"#c97ae8"},
+  {sides:10, label:"D10", sym:"⬟",color:"#7ae8a4"},
+  {sides:12, label:"D12", sym:"⬠",color:"#e87a7a"},
+  {sides:20, label:"D20", sym:"⬡",color:"#e8a47a"},
+  {sides:100,label:"D100",sym:"◉",color:"#a4e87a"},
+];
+
+let sel=DICE[5], count=1, mod=0, rolling=false, history=[], dieImg=null;
+
+const rollDie  = document.getElementById("rolling-die");
+const rollStage= document.getElementById("roll-stage");
+
+// ── FACES ──
+function setFaceContent(){
+  for(let i=1;i<=6;i++){
+    const img=document.getElementById("fi"+i);
+    const num=document.getElementById("fn"+i);
+    if(dieImg){img.src=dieImg;img.style.display="block"}
+    else{img.src="";img.style.display="none"}
+    // show different face numbers
+    const faceNums=[1, Math.ceil(sel.sides/4), Math.ceil(sel.sides/2), Math.ceil(sel.sides*.75), sel.sides-1, sel.sides];
+    num.textContent=faceNums[i-1]||i;
+    num.style.color=sel.color;
+  }
+  rollDie.style.setProperty("--die-glow",sel.color);
+  // tint faces
+  document.querySelectorAll(".face").forEach(f=>{
+    f.style.boxShadow=`inset 0 0 20px ${sel.color}22`;
+    f.style.borderColor=`${sel.color}44`;
+  });
+}
+
+// ── DICE GRID ──
+const grid=document.getElementById("dice-grid");
+DICE.forEach(die=>{
+  const btn=document.createElement("button");
+  btn.className="die-btn";
+  btn.dataset.sides=die.sides;
+  btn.innerHTML=`<span class="die-sym" style="color:${die.color}">${die.sym}</span><span class="die-lbl">${die.label}</span>`;
+  btn.addEventListener("click",()=>{sel=die;updateGrid();updateRollBtn();clearResult();});
+  grid.appendChild(btn);
+});
+function updateGrid(){
+  grid.querySelectorAll(".die-btn").forEach(btn=>{
+    const d=DICE.find(x=>x.sides==btn.dataset.sides);
+    const active=d.sides===sel.sides;
+    btn.style.background=active?`${d.color}20`:"rgba(255,255,255,.04)";
+    btn.style.border=active?`2px solid ${d.color}`:"2px solid rgba(255,255,255,.08)";
+    btn.style.boxShadow=active?`0 0 14px ${d.color}33`:"none";
+    btn.querySelector(".die-lbl").style.color=active?d.color:"#555";
+  });
+}
+
+// ── STEPPERS ──
+function bindStepper(downId,upId,getVal,setVal,min,max,dispId,fmt){
+  document.getElementById(downId).onclick=()=>{if(getVal()>min){setVal(getVal()-1);document.getElementById(dispId).textContent=fmt(getVal());updateRollBtn();}};
+  document.getElementById(upId).onclick=()=>{if(getVal()<max){setVal(getVal()+1);document.getElementById(dispId).textContent=fmt(getVal());updateRollBtn();}};
+}
+bindStepper("count-down","count-up",()=>count,v=>{count=v},1,20,"count-disp",v=>v);
+bindStepper("mod-down","mod-up",()=>mod,v=>{mod=v},-20,20,"mod-disp",v=>v>0?`+${v}`:v);
+
+// ── ROLL BUTTON ──
+function updateRollBtn(){
+  const btn=document.getElementById("roll-btn");
+  const modStr=mod!==0?(mod>0?`+${mod}`:mod):"";
+  const cntStr=count>1?`${count}×`:"";
+  btn.textContent=rolling?"Rolling...":`Roll ${cntStr}${sel.label}${modStr}`;
+  btn.style.background=rolling?`rgba(232,201,122,.12)`:`linear-gradient(135deg,${sel.color}cc,${sel.color}88)`;
+  btn.style.border=`1px solid ${sel.color}66`;
+  btn.style.color=rolling?sel.color:"#0e0c09";
+  btn.style.boxShadow=rolling?"none":`0 4px 24px ${sel.color}44`;
+  btn.disabled=rolling;
+}
+function clearResult(){document.getElementById("result-box").style.display="none";}
+
+// ── ROLL ANIMATION ──
+function r(sides){return Math.floor(Math.random()*sides)+1;}
+
+document.getElementById("roll-btn").addEventListener("click",handleRoll);
+
+function handleRoll(){
+  if(rolling)return;
+  rolling=true;
+  updateRollBtn();
+  setFaceContent();
+
+  const rb   = document.getElementById("result-box");
+  const rnum = document.getElementById("result-number");
+  const badge= document.getElementById("result-badge");
+  const bkdn = document.getElementById("result-breakdown");
+  const mline= document.getElementById("result-mod-line");
+
+  rb.style.display="block";
+  rb.style.animation="none";
+  badge.style.display="none";
+  rnum.style.animation="none";
+  rnum.textContent="…";
+  rnum.style.color=sel.color;
+  rnum.style.textShadow="none";
+  bkdn.textContent="";mline.textContent="";
+
+  // Position die at bottom-center and fly across screen
+  const startX=window.innerWidth*0.1 + Math.random()*window.innerWidth*0.2;
+  const startY=window.innerHeight*0.75;
+  const endX  =window.innerWidth*0.6 + Math.random()*window.innerWidth*0.3;
+  const endY  =window.innerHeight*0.1 + Math.random()*window.innerHeight*0.2;
+
+  rollDie.style.display="block";
+  rollDie.style.left=startX+"px";
+  rollDie.style.top=startY+"px";
+  rollDie.style.opacity="1";
+  rollDie.style.transition="none";
+  rollDie.style.filter=`drop-shadow(0 0 28px ${sel.color}bb)`;
+  rollDie.classList.add("tumbling");
+
+  // Animate path using JS
+  const dur=1500; // ms
+  const start=performance.now();
+
+  function animatePath(now){
+    const t=Math.min((now-start)/dur,1);
+    // ease in-out cubic
+    const e=t<.5?4*t*t*t:(t-1)*(2*t-2)*(2*t-2)+1;
+    // arc: parabola y offset
+    const arc=-280*Math.sin(Math.PI*t);
+    rollDie.style.left=(startX+(endX-startX)*e)+"px";
+    rollDie.style.top =(startY+(endY-startY)*e+arc)+"px";
+    // scale: bigger mid-flight
+    const sc=1+0.5*Math.sin(Math.PI*t);
+    rollDie.style.transform=`scale(${sc})`;
+    if(t<1){requestAnimationFrame(animatePath);}
+    else{landDie();}
+  }
+  requestAnimationFrame(animatePath);
+
+  // Ticker for result display
+  let ticks=0;
+  const tickMax=22;
+  const tickInterval=setInterval(()=>{
+    const fake=Array.from({length:count},()=>r(sel.sides));
+    rnum.textContent=fake.reduce((a,b)=>a+b,0)+mod;
+    rnum.style.animation="spin-num .1s ease";
+    setTimeout(()=>rnum.style.animation="none",100);
+    ticks++;
+    if(ticks>=tickMax){clearInterval(tickInterval);}
+  },60);
+
+  function landDie(){
+    rollDie.classList.remove("tumbling");
+    // Final bounce
+    rollDie.style.transition="transform .15s ease-out";
+    rollDie.style.transform="scale(1.25)";
+    setTimeout(()=>{
+      rollDie.style.transform="scale(1)";
+      setTimeout(()=>{
+        // Fade out
+        rollDie.style.transition="opacity .4s ease";
+        rollDie.style.opacity="0";
+        setTimeout(()=>{rollDie.style.display="none";},400);
+      },200);
+    },150);
+
+    // Final result
+    const finalRolls=Array.from({length:count},()=>r(sel.sides));
+    const total=finalRolls.reduce((a,b)=>a+b,0)+mod;
+    const isCrit=sel.sides===20&&finalRolls[0]===20&&count===1;
+    const isFumble=sel.sides===20&&finalRolls[0]===1&&count===1;
+
+    rnum.textContent=total;
+    rnum.style.fontSize=total>=100?"52px":"72px";
+    rb.style.animation="float-in .35s ease both";
+
+    if(isCrit){
+      rnum.style.color="#e8c97a";rnum.style.textShadow="0 0 40px #e8c97a";
+      rb.style.background="rgba(232,201,122,.07)";rb.style.border="1px solid rgba(232,201,122,.3)";
+      rb.style.animation="crit-flash 1s ease infinite";
+      badge.textContent="✦ CRITICAL HIT ✦";badge.style.color="#e8c97a";
+      badge.style.textShadow="0 0 18px #e8c97a";badge.style.display="block";
+    } else if(isFumble){
+      rnum.style.color="#e87a7a";rnum.style.textShadow="0 0 40px #e87a7a";
+      rb.style.background="rgba(232,80,80,.07)";rb.style.border="1px solid rgba(232,80,80,.3)";
+      rb.style.animation="fumble-flash 1s ease infinite";
+      badge.textContent="✦ CRITICAL FUMBLE ✦";badge.style.color="#e87a7a";
+      badge.style.textShadow="0 0 18px #e87a7a";badge.style.display="block";
+    } else {
+      rnum.style.color=sel.color;rnum.style.textShadow=`0 0 40px ${sel.color}`;
+      rb.style.background="rgba(255,255,255,.03)";rb.style.border=`1px solid rgba(255,255,255,.06)`;
+      rb.style.animation="float-in .35s ease both";
+      badge.style.display="none";
+    }
+
+    if(count>1){
+      const ms=mod!==0?` ${mod>0?"+":""}${mod}`:"";
+      bkdn.textContent=`[${finalRolls.join("  +  ")}]${ms}`;
+    }
+    if(mod!==0&&count===1){
+      mline.textContent=`${finalRolls[0]} ${mod>0?"+":""}${mod} = ${total}`;
+    }
+
+    history.unshift({label:sel.label,rolls:finalRolls,total,color:sel.color});
+    history=history.slice(0,12);
+    renderHistory();
+
+    rolling=false;
+    updateRollBtn();
+  }
+}
+
+function renderHistory(){
+  const sec=document.getElementById("history-section");
+  const list=document.getElementById("history-list");
+  if(!history.length){sec.style.display="none";return;}
+  sec.style.display="block";
+  list.innerHTML="";
+  history.slice(0,6).forEach((e,i)=>{
+    const row=document.createElement("div");
+    row.className="hist-row";
+    row.style.borderLeft=`3px solid ${e.color}44`;
+    row.style.opacity=1-i*.14;
+    row.innerHTML=`<span class="hist-die" style="color:${e.color}">${e.label}</span>
+      <span class="hist-val">${e.rolls.length>1?`[${e.rolls.join(", ")}] = `:""}${e.total}</span>`;
+    list.appendChild(row);
+  });
+}
+
+// ── IMAGE UPLOAD ──
+const imgInput =document.getElementById("img-input");
+const imgPreview=document.getElementById("img-preview");
+const clearBtn =document.getElementById("clear-img");
+const uploadIcon=document.getElementById("upload-icon");
+const uploadText=document.getElementById("upload-text");
+const uploadSub =document.getElementById("upload-sub");
+const uploadArea=document.getElementById("upload-area");
+
+imgInput.addEventListener("change",e=>{
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    dieImg=ev.target.result;
+    imgPreview.src=dieImg;
+    imgPreview.style.display="block";
+    uploadIcon.style.display="none";
+    uploadText.textContent="Image loaded!";
+    uploadSub.textContent="Will appear on die faces when rolling";
+    clearBtn.style.display="inline-block";
+    uploadArea.classList.add("has-img");
+  };
+  reader.readAsDataURL(file);
+});
+
+clearBtn.addEventListener("click",e=>{
+  e.stopPropagation();
+  dieImg=null;
+  imgPreview.src="";imgPreview.style.display="none";
+  uploadIcon.style.display="block";
+  uploadText.textContent="Drop or click to upload";
+  uploadSub.textContent="Image will appear on all faces of the die";
+  clearBtn.style.display="none";
+  uploadArea.classList.remove("has-img");
+  imgInput.value="";
+});
+
+// Drag & drop
+uploadArea.addEventListener("dragover",e=>{e.preventDefault();uploadArea.style.borderColor=`rgba(232,201,122,.6)`;});
+uploadArea.addEventListener("dragleave",()=>uploadArea.style.borderColor="");
+uploadArea.addEventListener("drop",e=>{
+  e.preventDefault();uploadArea.style.borderColor="";
+  const file=e.dataTransfer.files[0];
+  if(file&&file.type.startsWith("image/")){
+    imgInput.files=e.dataTransfer.files;
+    imgInput.dispatchEvent(new Event("change"));
+  }
+});
+
+// Init
+updateGrid();
+updateRollBtn();
+</script>
+</body>
+</html>
