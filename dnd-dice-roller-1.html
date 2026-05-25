@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adventurer's Dice Tower</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background-color: #0e0c09;
+      background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(139,100,40,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(80,50,120,0.07) 0%, transparent 60%),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      font-family: system-ui, sans-serif;
+      padding: 24px 16px 48px;
+    }
+
+    .wrapper { width: 100%; max-width: 480px; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 28px; }
+    .header-sub {
+      font-family: 'Cinzel Decorative', Georgia, serif;
+      font-size: 11px; letter-spacing: 6px; color: #9b8c6e;
+      margin-bottom: 6px; text-transform: uppercase;
+    }
+    .header-title {
+      font-family: 'Cinzel Decorative', Georgia, serif;
+      font-size: 30px; font-weight: 700; color: #e8c97a;
+      letter-spacing: 2px; text-shadow: 0 0 40px rgba(232,201,122,0.4);
+    }
+
+    /* Panel */
+    .panel {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: 24px;
+      backdrop-filter: blur(12px);
+    }
+
+    .section-label {
+      font-family: 'Cinzel', serif; font-size: 10px;
+      letter-spacing: 3px; color: #9b8c6e;
+      margin-bottom: 12px; text-transform: uppercase;
+    }
+
+    /* Dice grid */
+    .dice-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 7px; margin-bottom: 22px;
+    }
+    .die-btn {
+      background: rgba(255,255,255,0.04);
+      border: 2px solid rgba(255,255,255,0.08);
+      border-radius: 11px; padding: 9px 0; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      transition: all 0.18s ease;
+    }
+    .die-btn:hover { transform: translateY(-3px) scale(1.06); }
+    .die-btn:active { transform: scale(0.96); }
+    .die-symbol { font-size: 15px; line-height: 1; }
+    .die-label { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: #666; }
+
+    /* Controls */
+    .controls-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+    .control-label { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 3px; color: #9b8c6e; margin-bottom: 8px; text-transform: uppercase; }
+    .stepper { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 8px 12px; border: 1px solid rgba(255,255,255,0.07); }
+    .step-btn { background: rgba(255,255,255,0.06); border: none; color: #ccc; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 16px; line-height: 1; transition: background 0.15s; }
+    .step-btn:hover { background: rgba(255,255,255,0.12); }
+    .step-value { flex: 1; text-align: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 18px; color: #e8c97a; }
+
+    /* Roll button */
+    #roll-btn {
+      width: 100%; padding: 15px 0; border-radius: 13px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 14px; font-weight: 700;
+      letter-spacing: 3px; text-transform: uppercase; transition: all 0.2s ease;
+    }
+    #roll-btn:hover:not(:disabled) { filter: brightness(1.15); }
+    #roll-btn:active:not(:disabled) { transform: scale(0.97); }
+    #roll-btn:disabled { cursor: not-allowed; }
+
+    /* Result */
+    #result-box {
+      display: none; margin-top: 20px; text-align: center;
+      padding: 20px 16px; border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .result-badge { font-family: 'Cinzel Decorative', serif; font-size: 11px; letter-spacing: 4px; margin-bottom: 8px; }
+    #result-breakdown { font-size: 13px; color: #9b8c6e; margin-bottom: 6px; font-family: monospace; letter-spacing: 1px; }
+    #result-number { font-family: 'Cinzel', serif; font-size: 72px; font-weight: 900; line-height: 1; transition: text-shadow 0.3s ease; }
+    #result-modifier-line { color: #666; font-size: 12px; margin-top: 4px; font-family: monospace; }
+
+    /* History */
+    #history-section {
+      display: none; margin-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.07); padding-top: 18px;
+    }
+    .history-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+    }
+    .history-label { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 3px; color: #9b8c6e; text-transform: uppercase; }
+    #clear-history-btn {
+      background: none; border: none; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 2px;
+      color: #554e42; text-transform: uppercase; transition: color 0.15s;
+    }
+    #clear-history-btn:hover { color: #9b8c6e; }
+
+    #history-list { display: flex; flex-direction: column; gap: 5px; }
+    .history-entry {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 12px; background: rgba(255,255,255,0.03);
+      border-radius: 8px; cursor: pointer;
+      transition: background 0.15s, transform 0.12s;
+      border-left: 3px solid transparent;
+    }
+    .history-entry:hover { background: rgba(255,255,255,0.07); transform: translateX(2px); }
+    .history-entry:active { transform: scale(0.98); }
+    .history-left { display: flex; align-items: center; gap: 10px; }
+    .history-die { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 700; }
+    .history-expr { color: #666; font-size: 11px; font-family: monospace; }
+    .history-total { color: #c8b99a; font-size: 13px; font-weight: 700; font-family: 'Cinzel', serif; }
+    .history-reroll { font-size: 10px; color: #444; margin-left: 6px; transition: color 0.15s; }
+    .history-entry:hover .history-reroll { color: #9b8c6e; }
+
+    .footer { text-align: center; margin-top: 20px; font-family: 'Cinzel', serif; font-size: 10px; color: #2e2920; letter-spacing: 2px; }
+
+    @keyframes float-in { from { opacity: 0; transform: translateY(14px) scale(0.92); } to { opacity: 1; transform: none; } }
+    @keyframes crit-flash { 0%,100% { background: rgba(232,201,122,0.05); } 50% { background: rgba(232,201,122,0.14); } }
+    @keyframes fumble-flash { 0%,100% { background: rgba(232,80,80,0.05); } 50% { background: rgba(232,80,80,0.14); } }
+    @keyframes pop-in { from { opacity:0; transform: translateY(-6px) scale(0.95); } to { opacity:1; transform:none; } }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="header-sub">⚔ Adventurer's ⚔</div>
+    <div class="header-title">Dice Tower</div>
+  </div>
+
+  <div class="panel">
+    <div class="section-label">Choose Die</div>
+    <div class="dice-grid" id="dice-grid"></div>
+
+    <div class="controls-row">
+      <div>
+        <div class="control-label">Number of Dice</div>
+        <div class="stepper">
+          <button class="step-btn" id="count-down">−</button>
+          <span class="step-value" id="count-display">1</span>
+          <button class="step-btn" id="count-up">+</button>
+        </div>
+      </div>
+      <div>
+        <div class="control-label">Modifier</div>
+        <div class="stepper">
+          <button class="step-btn" id="mod-down">−</button>
+          <span class="step-value" id="mod-display">0</span>
+          <button class="step-btn" id="mod-up">+</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="roll-btn">Roll D20</button>
+
+    <div id="result-box">
+      <div id="result-badge" class="result-badge" style="display:none"></div>
+      <div id="result-breakdown"></div>
+      <div id="result-number">—</div>
+      <div id="result-modifier-line"></div>
+    </div>
+
+    <div id="history-section">
+      <div class="history-header">
+        <div class="history-label">Roll Log</div>
+        <button id="clear-history-btn">Clear</button>
+      </div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <div class="footer">MAY YOUR ROLLS BE EVER IN YOUR FAVOR</div>
+</div>
+
+<script>
+  const DICE = [
+    { sides: 4,   label: "D4",   symbol: "▲", color: "#e8c97a" },
+    { sides: 6,   label: "D6",   symbol: "⬡", color: "#7ac4e8" },
+    { sides: 8,   label: "D8",   symbol: "◆", color: "#c97ae8" },
+    { sides: 10,  label: "D10",  symbol: "⬟", color: "#7ae8a4" },
+    { sides: 12,  label: "D12",  symbol: "⬠", color: "#e87a7a" },
+    { sides: 20,  label: "D20",  symbol: "⬡", color: "#e8a47a" },
+    { sides: 100, label: "D100", symbol: "◉", color: "#a4e87a" },
+  ];
+
+  let selected = DICE[5];
+  let count = 1;
+  let modifier = 0;
+  let rolling = false;
+  let history = [];
+
+  function rng(sides) { return Math.floor(Math.random() * sides) + 1; }
+
+  // ── Dice buttons ──
+  const grid = document.getElementById("dice-grid");
+  DICE.forEach(die => {
+    const btn = document.createElement("button");
+    btn.className = "die-btn";
+    btn.dataset.sides = die.sides;
+    btn.innerHTML = `<span class="die-symbol" style="color:${die.color}">${die.symbol}</span><span class="die-label">${die.label}</span>`;
+    btn.addEventListener("click", () => { selected = die; updateDiceButtons(); updateRollBtn(); clearResult(); });
+    grid.appendChild(btn);
+  });
+
+  function updateDiceButtons() {
+    grid.querySelectorAll(".die-btn").forEach(btn => {
+      const die = DICE.find(d => d.sides == btn.dataset.sides);
+      const active = die.sides === selected.sides;
+      btn.style.background = active ? `${die.color}20` : "rgba(255,255,255,0.04)";
+      btn.style.border = active ? `2px solid ${die.color}` : "2px solid rgba(255,255,255,0.08)";
+      btn.style.boxShadow = active ? `0 0 14px ${die.color}33` : "none";
+      btn.querySelector(".die-label").style.color = active ? die.color : "#666";
+    });
+  }
+
+  // ── Steppers ──
+  document.getElementById("count-down").onclick = () => { if (count > 1) { count--; document.getElementById("count-display").textContent = count; updateRollBtn(); } };
+  document.getElementById("count-up").onclick   = () => { if (count < 20) { count++; document.getElementById("count-display").textContent = count; updateRollBtn(); } };
+  document.getElementById("mod-down").onclick   = () => { if (modifier > -20) { modifier--; document.getElementById("mod-display").textContent = modifier > 0 ? `+${modifier}` : modifier; updateRollBtn(); } };
+  document.getElementById("mod-up").onclick     = () => { if (modifier < 20)  { modifier++; document.getElementById("mod-display").textContent = modifier > 0 ? `+${modifier}` : modifier; updateRollBtn(); } };
+
+  // ── Roll button label ──
+  function updateRollBtn() {
+    const btn = document.getElementById("roll-btn");
+    const modStr = modifier !== 0 ? (modifier > 0 ? `+${modifier}` : modifier) : "";
+    const countStr = count > 1 ? `${count}×` : "";
+    btn.textContent = rolling ? "Rolling…" : `Roll ${countStr}${selected.label}${modStr}`;
+    btn.style.background = rolling ? "rgba(232,201,122,0.12)" : `linear-gradient(135deg, ${selected.color}cc, ${selected.color}88)`;
+    btn.style.border = `1px solid ${selected.color}66`;
+    btn.style.color = rolling ? selected.color : "#0e0c09";
+    btn.style.boxShadow = rolling ? "none" : `0 4px 20px ${selected.color}44`;
+    btn.disabled = rolling;
+  }
+
+  function clearResult() { document.getElementById("result-box").style.display = "none"; }
+
+  // ── Main roll ──
+  document.getElementById("roll-btn").addEventListener("click", () => doRoll(selected, count, modifier));
+
+  function doRoll(die, n, mod) {
+    if (rolling) return;
+    rolling = true;
+
+    // Snap selection to the die being rolled
+    if (die !== selected) { selected = die; updateDiceButtons(); }
+    updateRollBtn();
+    clearResult();
+
+    const resultBox = document.getElementById("result-box");
+    const resultNum = document.getElementById("result-number");
+    const badge     = document.getElementById("result-badge");
+    const breakdown = document.getElementById("result-breakdown");
+    const modLine   = document.getElementById("result-modifier-line");
+
+    resultBox.style.display = "block";
+    resultBox.style.animation = "none";
+    resultBox.style.background = "rgba(255,255,255,0.03)";
+    resultBox.style.border = "1px solid rgba(255,255,255,0.06)";
+    badge.style.display = "none";
+    resultNum.style.color = die.color;
+    resultNum.style.textShadow = "none";
+    resultNum.style.fontSize = "72px";
+    resultNum.textContent = "…";
+    breakdown.textContent = "";
+    modLine.textContent = "";
+
+    let ticks = 0;
+    const interval = setInterval(() => {
+      resultNum.textContent = Array.from({ length: n }, () => rng(die.sides)).reduce((a, b) => a + b, 0) + mod;
+      ticks++;
+      if (ticks >= 12) {
+        clearInterval(interval);
+
+        const rolls = Array.from({ length: n }, () => rng(die.sides));
+        const total = rolls.reduce((a, b) => a + b, 0) + mod;
+        const isCrit   = die.sides === 20 && rolls[0] === 20 && n === 1;
+        const isFumble = die.sides === 20 && rolls[0] === 1  && n === 1;
+
+        resultNum.textContent = total;
+        resultNum.style.fontSize = total >= 100 ? "52px" : "72px";
+
+        if (isCrit) {
+          resultNum.style.color = "#e8c97a";
+          resultNum.style.textShadow = "0 0 40px #e8c97a";
+          resultBox.style.background = "rgba(232,201,122,0.07)";
+          resultBox.style.border = "1px solid rgba(232,201,122,0.3)";
+          resultBox.style.animation = "crit-flash 1s ease infinite";
+          badge.textContent = "✦ CRITICAL HIT ✦";
+          badge.style.color = "#e8c97a";
+          badge.style.textShadow = "0 0 18px #e8c97a";
+          badge.style.display = "block";
+        } else if (isFumble) {
+          resultNum.style.color = "#e87a7a";
+          resultNum.style.textShadow = "0 0 40px #e87a7a";
+          resultBox.style.background = "rgba(232,80,80,0.07)";
+          resultBox.style.border = "1px solid rgba(232,80,80,0.3)";
+          resultBox.style.animation = "fumble-flash 1s ease infinite";
+          badge.textContent = "✦ CRITICAL FUMBLE ✦";
+          badge.style.color = "#e87a7a";
+          badge.style.textShadow = "0 0 18px #e87a7a";
+          badge.style.display = "block";
+        } else {
+          resultNum.style.color = die.color;
+          resultNum.style.textShadow = `0 0 36px ${die.color}99`;
+          resultBox.style.animation = "float-in 0.3s ease both";
+        }
+
+        if (n > 1) {
+          const ms = mod !== 0 ? ` ${mod > 0 ? "+" : ""}${mod}` : "";
+          breakdown.textContent = `[${rolls.join("  +  ")}]${ms}`;
+        }
+        if (mod !== 0 && n === 1) {
+          modLine.textContent = `${rolls[0]} ${mod > 0 ? "+" : ""}${mod} = ${total}`;
+        }
+
+        pushHistory({ die, n, mod, rolls, total });
+        rolling = false;
+        updateRollBtn();
+      }
+    }, 45);
+  }
+
+  // ── History ──
+  function pushHistory(entry) {
+    history.unshift(entry);
+    history = history.slice(0, 10);
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const section = document.getElementById("history-section");
+    const list = document.getElementById("history-list");
+    if (!history.length) { section.style.display = "none"; return; }
+    section.style.display = "block";
+    list.innerHTML = "";
+    history.forEach((entry, i) => {
+      const { die, n, mod, rolls, total } = entry;
+      const row = document.createElement("div");
+      row.className = "history-entry";
+      row.style.borderLeftColor = `${die.color}55`;
+      row.style.opacity = Math.max(1 - i * 0.08, 0.35);
+      row.style.animation = i === 0 ? "pop-in 0.2s ease both" : "none";
+
+      const countStr = n > 1 ? `${n}×` : "";
+      const modStr   = mod !== 0 ? (mod > 0 ? `+${mod}` : mod) : "";
+      const expr     = n > 1 ? `[${rolls.join(",")}]${modStr}` : (modStr ? `${rolls[0]}${modStr}` : "");
+
+      row.innerHTML = `
+        <div class="history-left">
+          <span class="history-die" style="color:${die.color}">${countStr}${die.label}${modStr}</span>
+          ${expr ? `<span class="history-expr">= ${expr}</span>` : ""}
+        </div>
+        <div style="display:flex;align-items:center">
+          <span class="history-total" style="color:${die.color}">${total}</span>
+          <span class="history-reroll">↺</span>
+        </div>`;
+
+      // Click to re-roll same combo
+      row.addEventListener("click", () => {
+        count = n; modifier = mod; selected = die;
+        document.getElementById("count-display").textContent = n;
+        document.getElementById("mod-display").textContent = mod > 0 ? `+${mod}` : mod;
+        updateDiceButtons();
+        doRoll(die, n, mod);
+      });
+
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById("clear-history-btn").addEventListener("click", () => {
+    history = [];
+    renderHistory();
+  });
+
+  // Init
+  updateDiceButtons();
+  updateRollBtn();
+</script>
+</body>
+</html>
