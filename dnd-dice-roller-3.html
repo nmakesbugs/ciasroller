@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Dice Roller</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#e8c97a;
+  --dim:#9b8c6e;
+  --bg:#0e0c09;
+  --panel:rgba(255,255,255,0.04);
+  --border:rgba(255,255,255,0.09);
+}
+html{-webkit-tap-highlight-color:transparent;font-size:16px}
+body{
+  min-height:100vh;
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse at 20% 10%,rgba(139,100,40,.07) 0%,transparent 55%),
+    radial-gradient(ellipse at 80% 90%,rgba(80,50,120,.06) 0%,transparent 55%);
+  display:flex;justify-content:center;
+  padding:24px 14px 56px;
+  font-family:system-ui,sans-serif;
+  color:#ccc;
+}
+.page{width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px}
+
+/* ── TITLE ── */
+h1{
+  font-family:'Cinzel',serif;font-size:22px;font-weight:700;
+  color:var(--gold);text-align:center;letter-spacing:3px;
+  text-shadow:0 0 28px rgba(232,201,122,.35);
+  margin-bottom:4px;
+}
+
+/* ── PANEL ── */
+.card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:16px;padding:18px;
+}
+.card-label{
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;
+  color:var(--dim);text-transform:uppercase;margin-bottom:12px;
+}
+
+/* ── DICE GRID ── */
+.dice-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.die{
+  aspect-ratio:1;border-radius:10px;border:2px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;transition:transform .12s,box-shadow .12s,border-color .12s,background .12s;
+  padding:6px 0;
+}
+.die:active{transform:scale(.91)}
+.die-sym{font-size:13px;line-height:1}
+.die-lbl{font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#555;letter-spacing:.3px}
+
+/* More button */
+#more-btn{
+  grid-column:span 0; /* sits outside grid */
+  background:none;border:none;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
+  color:#3d3629;text-transform:uppercase;margin-top:8px;
+  width:100%;text-align:right;transition:color .15s;padding:2px 0;
+}
+#more-btn:hover{color:var(--dim)}
+#d100-row{display:none;margin-top:8px;animation:fadein .18s ease}
+#d100-row.open{display:block}
+
+/* ── STEPPERS ── */
+.ctrl-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ctrl-lbl{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:7px}
+.stepper{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(0,0,0,.3);border-radius:9px;
+  padding:6px 8px;border:1px solid rgba(255,255,255,.07);
+}
+.stp{
+  background:rgba(255,255,255,.07);border:none;color:#ccc;
+  width:36px;height:36px;border-radius:7px;cursor:pointer;
+  font-size:20px;line-height:1;flex-shrink:0;
+  transition:background .12s;
+}
+.stp:active{background:rgba(255,255,255,.2)}
+.stp-val{
+  flex:1;text-align:center;font-family:'Cinzel',serif;
+  font-weight:700;font-size:18px;color:var(--gold);
+}
+
+/* ── ROLL BUTTON ── */
+#roll-btn{
+  width:100%;padding:20px;border-radius:14px;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:17px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;
+  transition:filter .15s,transform .1s;
+  border:none;
+}
+#roll-btn:active:not(:disabled){transform:scale(.97)}
+#roll-btn:disabled{opacity:.65;cursor:not-allowed}
+
+/* ── RESULT ── */
+#result{
+  display:none;text-align:center;
+  padding:20px 16px;border-radius:14px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+  animation:floatin .25s ease both;
+}
+#res-badge{
+  font-family:'Cinzel',serif;font-size:10px;letter-spacing:5px;
+  margin-bottom:8px;display:none;text-transform:uppercase;
+}
+#res-num{font-family:'Cinzel',serif;font-size:80px;font-weight:900;line-height:1}
+#res-formula{font-size:13px;color:var(--dim);font-family:monospace;margin-top:6px}
+
+/* ── LOG ── */
+#log-wrap{display:none}
+.log-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.log-lbl{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:var(--dim);text-transform:uppercase}
+#log-clear{
+  background:none;border:none;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;
+  color:#2e2920;text-transform:uppercase;transition:color .15s;
+}
+#log-clear:hover{color:var(--dim)}
+#log-list{display:flex;flex-direction:column;gap:5px}
+.log-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 13px;background:rgba(255,255,255,.03);
+  border-radius:9px;border-left:3px solid transparent;
+  cursor:pointer;transition:background .15s,transform .1s;
+}
+.log-row:active{transform:scale(.98)}
+.log-row:hover{background:rgba(255,255,255,.07)}
+.log-formula{font-family:monospace;font-size:12px;color:#aaa}
+.log-total{font-family:'Cinzel',serif;font-size:15px;font-weight:900;margin-left:12px;flex-shrink:0}
+.log-reroll{font-size:13px;color:#2e2920;margin-left:8px;transition:color .15s;flex-shrink:0}
+.log-row:hover .log-reroll{color:var(--dim)}
+
+@keyframes floatin{from{opacity:0;transform:translateY(10px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes fadein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes popin{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+@keyframes crit{0%,100%{background:rgba(232,201,122,.05)}50%{background:rgba(232,201,122,.13)}}
+@keyframes fumble{0%,100%{background:rgba(232,80,80,.05)}50%{background:rgba(232,80,80,.12)}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>⚔ Dice Tower</h1>
+
+  <!-- DICE PICK -->
+  <div class="card">
+    <div class="card-label">Choose Die</div>
+    <div class="dice-grid" id="dice-grid"></div>
+    <button id="more-btn">More ▾</button>
+    <div id="d100-row">
+      <div class="die" id="d100-die" style="width:100%;flex-direction:row;gap:10px;border-radius:9px;padding:10px 14px;aspect-ratio:unset;justify-content:flex-start">
+        <span class="die-sym" style="color:#a4e87a">◉</span>
+        <span class="die-lbl" style="font-size:11px">D100 — percentile die</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEPPERS -->
+  <div class="card">
+    <div class="ctrl-row">
+      <div>
+        <div class="ctrl-lbl">Number of Dice</div>
+        <div class="stepper">
+          <button class="stp" id="cnt-dn">−</button>
+          <span class="stp-val" id="cnt-val">1</span>
+          <button class="stp" id="cnt-up">+</button>
+        </div>
+      </div>
+      <div>
+        <div class="ctrl-lbl">Modifier</div>
+        <div class="stepper">
+          <button class="stp" id="mod-dn">−</button>
+          <span class="stp-val" id="mod-val">0</span>
+          <button class="stp" id="mod-up">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROLL -->
+  <button id="roll-btn">Roll D20</button>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div id="res-badge"></div>
+    <div id="res-num">—</div>
+    <div id="res-formula"></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="card" id="log-wrap">
+    <div class="log-hdr">
+      <div class="log-lbl">Roll Log</div>
+      <button id="log-clear">Clear</button>
+    </div>
+    <div id="log-list"></div>
+  </div>
+
+</div>
+<script>
+// ── DATA ──
+const MAIN_DICE = [
+  {sides:4,  label:"D4",  sym:"▲", color:"#e8c97a"},
+  {sides:6,  label:"D6",  sym:"⬡", color:"#7ac4e8"},
+  {sides:8,  label:"D8",  sym:"◆", color:"#c97ae8"},
+  {sides:10, label:"D10", sym:"⬟", color:"#7ae8a4"},
+  {sides:12, label:"D12", sym:"⬠", color:"#e87a7a"},
+  {sides:20, label:"D20", sym:"⬡", color:"#e8a47a"},
+];
+const D100 = {sides:100, label:"D100", sym:"◉", color:"#a4e87a"};
+
+let sel = MAIN_DICE[5]; // D20
+let count = 1, mod = 0, rolling = false, log = [];
+
+function rng(n){ return Math.floor(Math.random()*n)+1; }
+
+// ── BUILD MAIN DICE BUTTONS ──
+const grid = document.getElementById("dice-grid");
+MAIN_DICE.forEach(die => {
+  const btn = document.createElement("button");
+  btn.className = "die";
+  btn.dataset.sides = die.sides;
+  btn.innerHTML = `<span class="die-sym" style="color:${die.color}">${die.sym}</span><span class="die-lbl">${die.label}</span>`;
+  btn.addEventListener("click", () => { sel = die; refreshDice(); refreshBtn(); clearResult(); });
+  grid.appendChild(btn);
+});
+
+// D100 hidden button
+document.getElementById("d100-die").addEventListener("click", () => {
+  sel = D100; refreshDice(); refreshBtn(); clearResult();
+});
+
+function refreshDice(){
+  grid.querySelectorAll(".die").forEach(btn => {
+    const d = MAIN_DICE.find(x => x.sides == btn.dataset.sides);
+    const on = d.sides === sel.sides;
+    btn.style.background = on ? `${d.color}22` : "rgba(255,255,255,.04)";
+    btn.style.borderColor = on ? d.color : "rgba(255,255,255,.08)";
+    btn.style.boxShadow  = on ? `0 0 14px ${d.color}33` : "none";
+    btn.querySelector(".die-lbl").style.color = on ? d.color : "#555";
+  });
+  // D100 row highlight
+  const d100el = document.getElementById("d100-die");
+  const on100 = sel.sides === 100;
+  d100el.style.background = on100 ? `${D100.color}22` : "rgba(255,255,255,.04)";
+  d100el.style.borderColor = on100 ? D100.color : "rgba(255,255,255,.08)";
+}
+
+// More / D100 toggle
+document.getElementById("more-btn").addEventListener("click", () => {
+  const row = document.getElementById("d100-row");
+  const open = row.classList.toggle("open");
+  document.getElementById("more-btn").textContent = open ? "Less ▴" : "More ▾";
+});
+
+// ── STEPPERS ──
+function bindStepper(dnId, upId, getV, setV, min, max, dispId, fmt){
+  document.getElementById(dnId).addEventListener("click", () => {
+    if(getV() > min){ setV(getV()-1); document.getElementById(dispId).textContent = fmt(getV()); refreshBtn(); }
+  });
+  document.getElementById(upId).addEventListener("click", () => {
+    if(getV() < max){ setV(getV()+1); document.getElementById(dispId).textContent = fmt(getV()); refreshBtn(); }
+  });
+}
+bindStepper("cnt-dn","cnt-up", ()=>count, v=>{count=v}, 1, 20, "cnt-val", v=>v);
+bindStepper("mod-dn","mod-up", ()=>mod,   v=>{mod=v},  -20, 20, "mod-val", v=>v>0?`+${v}`:v);
+
+// ── ROLL BUTTON LABEL ──
+function rollLabel(die, n, m){
+  const c = n > 1 ? `${n}×` : "";
+  const ms = m === 0 ? "" : m > 0 ? ` + ${m}` : ` - ${Math.abs(m)}`;
+  return `Roll ${c}${die.label}${ms}`;
+}
+function refreshBtn(){
+  const btn = document.getElementById("roll-btn");
+  btn.textContent = rolling ? "Rolling…" : rollLabel(sel, count, mod);
+  btn.style.background = rolling
+    ? "rgba(232,201,122,.1)"
+    : `linear-gradient(135deg, ${sel.color}dd, ${sel.color}99)`;
+  btn.style.color  = rolling ? sel.color : "#0a0805";
+  btn.style.boxShadow = rolling ? "none" : `0 6px 24px ${sel.color}55`;
+  btn.disabled = rolling;
+}
+function clearResult(){ document.getElementById("result").style.display = "none"; }
+
+// ── ROLL ──
+document.getElementById("roll-btn").addEventListener("click", () => doRoll(sel, count, mod));
+
+function doRoll(die, n, m){
+  if(rolling) return;
+  rolling = true;
+  sel = die; count = n; mod = m;
+  refreshDice(); refreshBtn(); clearResult();
+
+  const resBox   = document.getElementById("result");
+  const resNum   = document.getElementById("res-num");
+  const resBadge = document.getElementById("res-badge");
+  const resForm  = document.getElementById("res-formula");
+
+  resBox.style.display = "block";
+  resBox.style.animation = "none";
+  resBox.style.background = "rgba(255,255,255,.03)";
+  resBox.style.border = "1px solid rgba(255,255,255,.06)";
+  resBadge.style.display = "none";
+  resNum.style.color = die.color;
+  resNum.style.textShadow = "none";
+  resNum.style.fontSize = "80px";
+  resNum.textContent = "…";
+  resForm.textContent = "";
+
+  // Ticker
+  let ticks = 0;
+  const iv = setInterval(() => {
+    resNum.textContent = Array.from({length:n}, () => rng(die.sides)).reduce((a,b)=>a+b,0) + m;
+    if(++ticks >= 10){ clearInterval(iv); land(die, n, m, resBox, resNum, resBadge, resForm); }
+  }, 40);
+}
+
+function land(die, n, m, resBox, resNum, resBadge, resForm){
+  const rolls = Array.from({length:n}, () => rng(die.sides));
+  const sum   = rolls.reduce((a,b)=>a+b,0);
+  const total = sum + m;
+
+  const isCrit   = die.sides === 20 && rolls[0] === 20 && n === 1;
+  const isFumble = die.sides === 20 && rolls[0] === 1  && n === 1;
+
+  resNum.textContent = total;
+  resNum.style.fontSize = total >= 100 ? "56px" : "80px";
+
+  if(isCrit){
+    resNum.style.color = "#e8c97a";
+    resNum.style.textShadow = "0 0 40px #e8c97a";
+    resBox.style.background = "rgba(232,201,122,.07)";
+    resBox.style.border = "1px solid rgba(232,201,122,.3)";
+    resBox.style.animation = "crit 1s ease infinite";
+    resBadge.textContent = "✦ CRITICAL HIT ✦";
+    resBadge.style.color = "#e8c97a";
+    resBadge.style.display = "block";
+  } else if(isFumble){
+    resNum.style.color = "#e87a7a";
+    resNum.style.textShadow = "0 0 40px #e87a7a";
+    resBox.style.background = "rgba(232,80,80,.07)";
+    resBox.style.border = "1px solid rgba(232,80,80,.3)";
+    resBox.style.animation = "fumble 1s ease infinite";
+    resBadge.textContent = "✦ CRITICAL FUMBLE ✦";
+    resBadge.style.color = "#e87a7a";
+    resBadge.style.display = "block";
+  } else {
+    resNum.style.color = die.color;
+    resNum.style.textShadow = `0 0 32px ${die.color}88`;
+    resBox.style.animation = "floatin .25s ease both";
+  }
+
+  // Formula line under number  e.g.  "2d6 + 1 = 9  [4 + 5]"
+  resForm.textContent = buildFormula(die, n, m, rolls, total);
+
+  pushLog({die, n, m, rolls, total});
+  rolling = false;
+  refreshBtn();
+}
+
+// ── FORMULA STRING ──
+// Format:  1d20 + 3 = 17   or   2d6 + 1 = 9  [4 + 5]
+function buildFormula(die, n, m, rolls, total){
+  const dieStr = `${n}${die.label.toLowerCase()}`;
+  const mStr   = m === 0 ? "" : m > 0 ? ` + ${m}` : ` - ${Math.abs(m)}`;
+  const eq     = `${dieStr}${mStr} = ${total}`;
+  const detail = n > 1 ? `  [${rolls.join(" + ")}${m!==0 ? (m>0?` + ${m}`:` - ${Math.abs(m)}`):""}]` : "";
+  return eq + detail;
+}
+
+// ── LOG ──
+function pushLog(entry){
+  log.unshift(entry);
+  log = log.slice(0, 20);
+  renderLog();
+}
+
+function renderLog(){
+  const wrap = document.getElementById("log-wrap");
+  const list = document.getElementById("log-list");
+  if(!log.length){ wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  list.innerHTML = "";
+  log.forEach((e, i) => {
+    const formula = buildFormula(e.die, e.n, e.m, e.rolls, e.total);
+    const row = document.createElement("div");
+    row.className = "log-row";
+    row.style.borderLeftColor = `${e.die.color}55`;
+    row.style.opacity = Math.max(1 - i * 0.07, 0.25);
+    if(i === 0) row.style.animation = "popin .18s ease both";
+    row.innerHTML = `
+      <span class="log-formula">${formula}</span>
+      <div style="display:flex;align-items:center">
+        <span class="log-total" style="color:${e.die.color}">${e.total}</span>
+        <span class="log-reroll">↺</span>
+      </div>`;
+    row.addEventListener("click", () => {
+      count = e.n; mod = e.m;
+      document.getElementById("cnt-val").textContent = e.n;
+      document.getElementById("mod-val").textContent = e.m > 0 ? `+${e.m}` : e.m;
+      doRoll(e.die, e.n, e.m);
+    });
+    list.appendChild(row);
+  });
+}
+
+document.getElementById("log-clear").addEventListener("click", () => { log = []; renderLog(); });
+
+// ── INIT ──
+refreshDice();
+refreshBtn();
+</script>
+</body>
+</html>
